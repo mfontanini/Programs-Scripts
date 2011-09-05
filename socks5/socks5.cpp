@@ -37,12 +37,17 @@
 #include <algorithm>
 #include <set>
 
-
-#define SERVER_PORT 45321
+#ifndef SERVER_PORT
+    #define SERVER_PORT 5555
+#endif
 #define MAXPENDING 200
 #define BUF_SIZE 256
-#define USERNAME "username"
-#define PASSWORD "password"
+#ifndef USERNAME
+    #define USERNAME "username"
+#endif
+#ifndef PASSWORD
+    #define PASSWORD "password"
+#endif
 
 
 using namespace std;
