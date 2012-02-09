@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-c -Wall -DDEBUG -O3 -fPIC
+CFLAGS=-c -Wall -O3 -fPIC
 LDFLAGS=-ldl -Wl,-soname,keylogger.so -shared 
 SOURCES=$(wildcard keylogger.c)
 
