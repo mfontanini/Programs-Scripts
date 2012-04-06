@@ -40,25 +40,26 @@ Python::Script::Script(const string &script_path)
 
 PyObject *Python::Script::load_function(const std::string &name) 
   throw(runtime_error) {
-    auto it(functions.find(name));
-    // Is it cached?
-    if(it == functions.end()) {
-        PyObject *obj(PyObject_GetAttrString(module.get(), name.c_str()));
-        if(!obj)
-            throw std::runtime_error("Failed to load function");
-        functions[name] = obj;
-        return obj;
-    }
-    else
-        return it->second;
+    PyObject *obj(PyObject_GetAttrString(module.get(), name.c_str()));
+    if(!obj)
+        throw std::runtime_error("Failed to find function");
+    return obj;
 }
 
 PyObject *Python::alloc_pyobject(const std::string &str) {
     return PyString_FromString(str.c_str());
 }
 
+PyObject *Python::alloc_pyobject(const char *cstr) {
+    return PyString_FromString(cstr);
+}
+
 PyObject *Python::alloc_pyobject(int num) {
     return PyInt_FromLong(num);
+}
+
+PyObject *Python::alloc_pyobject(bool value) {
+    return PyBool_FromLong(value);
 }
 
 PyObject *Python::alloc_pyobject(double num) {
@@ -82,6 +83,16 @@ bool Python::convert(PyObject *obj, std::string &val) {
 
 bool Python::convert(PyObject *obj, Py_ssize_t &val) {
     return generic_convert<Py_ssize_t>(obj, is_py_int, PyInt_AsSsize_t, val);
+}
+
+bool Python::convert(PyObject *obj, bool &value) {
+    if(obj == Py_False)
+        value = false;
+    else if(obj == Py_True)
+        value = true;
+    else
+        return false;
+    return true;
 }
 
 bool Python::convert(PyObject *obj, double &val) {

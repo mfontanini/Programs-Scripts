@@ -48,6 +48,8 @@ namespace Python {
     bool convert(PyObject *obj, std::string &val);
     // Convert a PyObject to a ssize_t.
     bool convert(PyObject *obj, Py_ssize_t &val);
+    // Convert a PyObject to a value.
+    bool convert(PyObject *obj, bool &value);
     // Convert a PyObject to a long.
     bool convert(PyObject *obj, long &val);
     // Convert a PyObject to an float.
@@ -139,8 +141,12 @@ namespace Python {
     }
     // Creates a PyObject from a std::string
     PyObject *alloc_pyobject(const std::string &str);
+    // Creates a PyObject from a const char*
+    PyObject *alloc_pyobject(const char *cstr);
     // Creates a PyObject from an int
     PyObject *alloc_pyobject(int num);
+    // Creates a PyObject from a bool
+    PyObject *alloc_pyobject(bool value);
     // Creates a PyObject from a double
     PyObject *alloc_pyobject(double num);
     // Creates a PyObject from a std::vector
@@ -194,6 +200,14 @@ namespace Python {
                 throw std::runtime_error("Failed to call function");
             return pyunique_ptr(ret);
         }
+        
+        pyunique_ptr get_attr(const std::string &name) 
+          throw(std::runtime_error) {
+            PyObject *obj(PyObject_GetAttrString(module.get(), name.c_str()));
+            if(!obj)
+                throw std::runtime_error("Unable to find attribute");
+            return pyunique_ptr(obj);
+        }
     private:
         PyObject *load_function(const std::string &name) 
           throw(std::runtime_error);
@@ -221,7 +235,6 @@ namespace Python {
         }
         
         pyunique_ptr module;
-        std::map<std::string, PyObject*> functions;
     };
 
 };
