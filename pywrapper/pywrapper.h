@@ -46,12 +46,14 @@ namespace Python {
     
     // Convert a PyObject to a std::string.
     bool convert(PyObject *obj, std::string &val);
+    // Convert a PyObject to a std::vector<char>.
+    bool convert(PyObject *obj, std::vector<char> &val);
     // Convert a PyObject to a ssize_t.
     bool convert(PyObject *obj, Py_ssize_t &val);
     // Convert a PyObject to a value.
     bool convert(PyObject *obj, bool &value);
-    // Convert a PyObject to a long.
-    bool convert(PyObject *obj, long &val);
+    // Convert a PyObject to a size_t.
+    bool convert(PyObject *obj, size_t &val);
     // Convert a PyObject to an float.
     bool convert(PyObject *obj, double &val);
     
@@ -141,10 +143,16 @@ namespace Python {
     }
     // Creates a PyObject from a std::string
     PyObject *alloc_pyobject(const std::string &str);
+    // Creates a PyObject from a std::vector<char>
+    PyObject *alloc_pyobject(const std::vector<char> &val, size_t sz);
+    // Creates a PyObject from a std::vector<char>
+    PyObject *alloc_pyobject(const std::vector<char> &val);
     // Creates a PyObject from a const char*
     PyObject *alloc_pyobject(const char *cstr);
     // Creates a PyObject from an int
     PyObject *alloc_pyobject(int num);
+    // Creates a PyObject from an size_t
+    PyObject *alloc_pyobject(size_t num);
     // Creates a PyObject from a bool
     PyObject *alloc_pyobject(bool value);
     // Creates a PyObject from a double
@@ -176,38 +184,32 @@ namespace Python {
     public:
         // Script constructor that takes the script path as the name.
         Script(const std::string &script_path) throw(std::runtime_error);
+        Script();
+        
+        void load_script(const std::string &script_path) throw(std::runtime_error);
         
         // Calls the function named "name" using the arguments "args".
         template<typename... Args>
         pyunique_ptr call_function(const std::string &name, Args... args) 
           throw(std::runtime_error) {
-            PyObject *func(load_function(name));
+            pyunique_ptr func(load_function(name));
             // Create the tuple argument
             pyunique_ptr tup(PyTuple_New(sizeof...(args)));
             add_tuple_vars(tup, args...);
             // Call our object
-            PyObject *ret(PyObject_CallObject(func, tup.get()));
+            PyObject *ret(PyObject_CallObject(func.get(), tup.get()));
             if(!ret)
-                throw std::runtime_error("Failed to call function");
+                throw std::runtime_error("Failed to call function " + name);
             return pyunique_ptr(ret);
         }
         
         pyunique_ptr call_function(const std::string &name) 
-          throw(std::runtime_error) {
-            PyObject *func(load_function(name));
-            PyObject *ret(PyObject_CallObject(func, 0));
-            if(!ret)
-                throw std::runtime_error("Failed to call function");
-            return pyunique_ptr(ret);
-        }
-        
-        pyunique_ptr get_attr(const std::string &name) 
-          throw(std::runtime_error) {
-            PyObject *obj(PyObject_GetAttrString(module.get(), name.c_str()));
-            if(!obj)
-                throw std::runtime_error("Unable to find attribute");
-            return pyunique_ptr(obj);
-        }
+          throw(std::runtime_error);
+        pyunique_ptr get_attr(const std::string &name)
+          throw(std::runtime_error);
+        void print_error();
+        void clear_error();
+        void print_object(PyObject *obj);
     private:
         PyObject *load_function(const std::string &name) 
           throw(std::runtime_error);
@@ -218,7 +220,7 @@ namespace Python {
             add_tuple_var(
                 tup, 
                 PyTuple_Size(tup.get()) - sizeof...(tail) - 1, 
-                alloc_pyobject(head)
+                head
             );
             add_tuple_vars(tup, tail...);
         }
@@ -232,6 +234,12 @@ namespace Python {
         // Adds a PyObject* to the tuple object
         void add_tuple_var(pyunique_ptr &tup, Py_ssize_t i, PyObject *pobj) {
             PyTuple_SetItem(tup.get(), i, pobj);
+        }
+        
+        // Adds a PyObject* to the tuple object
+        template<class T> void add_tuple_var(pyunique_ptr &tup, Py_ssize_t i, 
+          const T &data) {
+            PyTuple_SetItem(tup.get(), i, alloc_pyobject(data));
         }
         
         pyunique_ptr module;
