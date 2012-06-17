@@ -18,8 +18,8 @@
  * 
  */
  
-#ifndef __PYWRAPPER_H
-#define __PYWRAPPER_H
+#ifndef PYWRAPPER_H
+#define PYWRAPPER_H
 
 #include <string>
 #include <stdexcept>
@@ -35,12 +35,12 @@
 namespace Python {
     // Deleter that calls Py_XDECREF on the PyObject parameter.
     struct PyObjectDeleter {
-            void operator()(PyObject *obj) {
-                Py_XDECREF(obj);
-            } 
-        };
-        // unique_ptr that uses Py_XDECREF as the destructor function.
-        typedef std::unique_ptr<PyObject, PyObjectDeleter> pyunique_ptr;
+        void operator()(PyObject *obj) {
+            Py_XDECREF(obj);
+        } 
+    };
+    // unique_ptr that uses Py_XDECREF as the destructor function.
+    typedef std::unique_ptr<PyObject, PyObjectDeleter> pyunique_ptr;
     
     // ------------ Conversion functions ------------
     
@@ -120,9 +120,9 @@ namespace Python {
     }
     
     template<class T> bool generic_convert(PyObject *obj, 
-        const std::function<bool(PyObject*)> &is_obj,
-        const std::function<T(PyObject*)> &converter,
-        T &val) {
+      const std::function<bool(PyObject*)> &is_obj,
+      const std::function<T(PyObject*)> &converter,
+      T &val) {
         if(!is_obj(obj))
             return false;
         val = converter(obj);
@@ -179,19 +179,46 @@ namespace Python {
         return dict;
     }
     
-    // This class is an abstraction of a python script.
-    class Script {
+    void initialize();
+    void finalize();
+    void print_error();
+    void clear_error();
+    void print_object(PyObject *obj);
+    
+    /**
+     * \class Object
+     * \brief This class represents a python object.
+     */
+    class Object {
     public:
-        // Script constructor that takes the script path as the name.
-        Script(const std::string &script_path) throw(std::runtime_error);
-        Script();
+        /**
+         * \brief Constructs a default python object
+         */
+        Object();
         
-        void load_script(const std::string &script_path) throw(std::runtime_error);
+        /**
+         * \brief Constructs a python object from a PyObject pointer.
+         * 
+         * This Object takes ownership of the PyObject* argument. That 
+         * means no Py_INCREF is performed on it. 
+         * \param obj The pointer from which to construct this Object.
+         */
+        Object(PyObject *obj);
         
-        // Calls the function named "name" using the arguments "args".
+        /**
+         * \brief Calls the callable attribute "name" using the provided
+         * arguments.
+         * 
+         * This function might throw a std::runtime_error if there is
+         * an error when calling the function.
+         * 
+         * \param name The name of the attribute to be called.
+         * \param args The arguments which will be used when calling the
+         * attribute.
+         * \return Python::Object containing the result of the function.
+         */
         template<typename... Args>
-        pyunique_ptr call_function(const std::string &name, Args... args) 
-          throw(std::runtime_error) {
+        Object call_function(const std::string &name, const Args&... args) {
             pyunique_ptr func(load_function(name));
             // Create the tuple argument
             pyunique_ptr tup(PyTuple_New(sizeof...(args)));
@@ -200,23 +227,68 @@ namespace Python {
             PyObject *ret(PyObject_CallObject(func.get(), tup.get()));
             if(!ret)
                 throw std::runtime_error("Failed to call function " + name);
-            return pyunique_ptr(ret);
+            return {ret};
         }
         
-        pyunique_ptr call_function(const std::string &name) 
-          throw(std::runtime_error);
-        pyunique_ptr get_attr(const std::string &name)
-          throw(std::runtime_error);
-        void print_error();
-        void clear_error();
-        void print_object(PyObject *obj);
+        /**
+         * \brief Calls a callable attribute using no arguments.
+         * 
+         * This function might throw a std::runtime_error if there is
+         * an error when calling the function.
+         * 
+         * \sa Python::Object::call_function.
+         * \param name The name of the callable attribute to be executed.
+         * \return Python::Object containing the result of the function.
+         */
+        Object call_function(const std::string &name);
+        
+        /**
+         * \brief Finds and returns the attribute named "name".
+         * 
+         * This function might throw a std::runtime_error if an error
+         * is encountered while fetching the attribute.
+         * 
+         * \param name The name of the attribute to be returned.
+         * \return Python::Object representing the attribute.
+         */
+        Object get_attr(const std::string &name);
+          
+        /**
+         * \brief Returns the internal PyObject*.
+         * 
+         * No reference increment is performed on the PyObject* before
+         * returning it, so any DECREF applied to it without INCREF'ing
+         * it will cause undefined behaviour.
+         * \return The PyObject* which this Object is representing.
+         */
+        PyObject *get() const { return py_obj.get(); }
+        
+        template<class T>
+        bool convert(T &param) {
+            return Python::convert(py_obj.get(), param);
+        }
+        
+        /**
+         * \brief Constructs a Python::Object from a script.
+         * 
+         * The returned Object will be the representation of the loaded
+         * script. If any errors are encountered while loading this 
+         * script, a std::runtime_error is thrown.
+         * 
+         * \param script_path The path of the script to be loaded.
+         * \return Object representing the loaded script.
+         */
+        static Object from_script(const std::string &script_path);
     private:
-        PyObject *load_function(const std::string &name) 
-          throw(std::runtime_error);
+        typedef std::shared_ptr<PyObject> pyshared_ptr;
+    
+        PyObject *load_function(const std::string &name);
+        
+        pyshared_ptr make_pyshared(PyObject *obj);
     
         // Variadic template method to add items to a tuple
         template<typename First, typename... Rest> 
-        void add_tuple_vars(pyunique_ptr &tup, First head, Rest... tail) {
+        void add_tuple_vars(pyunique_ptr &tup, const First &head, const Rest&... tail) {
             add_tuple_var(
                 tup, 
                 PyTuple_Size(tup.get()) - sizeof...(tail) - 1, 
@@ -225,10 +297,17 @@ namespace Python {
             add_tuple_vars(tup, tail...);
         }
         
+        
+        void add_tuple_vars(pyunique_ptr &tup, PyObject *arg) {
+            add_tuple_var(tup, PyTuple_Size(tup.get()) - 1, arg);
+        }
+        
         // Base case for add_tuple_vars
         template<typename Arg> 
-        void add_tuple_vars(pyunique_ptr &tup, Arg arg) {
-            add_tuple_var(tup, PyTuple_Size(tup.get()) - 1, alloc_pyobject(arg));
+        void add_tuple_vars(pyunique_ptr &tup, const Arg &arg) {
+            add_tuple_var(tup, 
+              PyTuple_Size(tup.get()) - 1, alloc_pyobject(arg)
+            );
         }
         
         // Adds a PyObject* to the tuple object
@@ -242,9 +321,8 @@ namespace Python {
             PyTuple_SetItem(tup.get(), i, alloc_pyobject(data));
         }
         
-        pyunique_ptr module;
+        pyshared_ptr py_obj;
     };
-
 };
 
-#endif // __PYWRAPPER_H
+#endif // PYWRAPPER_H

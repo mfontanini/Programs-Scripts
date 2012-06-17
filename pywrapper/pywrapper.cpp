@@ -24,18 +24,20 @@
 using std::runtime_error;
 using std::string;
 
-Python::Script::Script(const string &script_path) 
-  throw(runtime_error) {
-    Py_Initialize();
-    load_script(script_path);
+namespace Python {
+Object::Object() {
+    
 }
 
-Python::Script::Script() {
-    Py_Initialize();
+Object::Object(PyObject *obj) : py_obj(make_pyshared(obj)) {
+    
 }
 
-void Python::Script::load_script(const string &script_path) 
-  throw(runtime_error) {
+Python::Object::pyshared_ptr Object::make_pyshared(PyObject *obj) {
+    return pyshared_ptr(obj, [](PyObject *obj) { Py_XDECREF(obj); });
+}
+
+Object Object::from_script(const string &script_path) {
     char arr[] = "path";
     PyObject *path(PySys_GetObject(arr));
     string base_path("."), file_path;
@@ -54,81 +56,87 @@ void Python::Script::load_script(const string &script_path)
     
     PyList_Append(path, pwd.get());
     /* We don't need that string value anymore, so deref it */
-    module.reset(PyImport_ImportModule(file_path.c_str()));
-    if(!module.get()) {
+    PyObject *py_ptr(PyImport_ImportModule(file_path.c_str()));
+    if(!py_ptr) {
         print_error();
         throw runtime_error("Failed to load script"); 
     }
+    return {py_ptr};
 }
 
-void Python::Script::clear_error() {
-    PyErr_Clear();
-}
-
-void Python::Script::print_error() {
-    PyErr_Print();
-}
-
-void Python::Script::print_object(PyObject *obj) {
-    PyObject_Print(obj, stdout, 0);
-}
-
-PyObject *Python::Script::load_function(const std::string &name) 
-  throw(runtime_error) {
-    PyObject *obj(PyObject_GetAttrString(module.get(), name.c_str()));
+PyObject *Object::load_function(const std::string &name) {
+    PyObject *obj(PyObject_GetAttrString(py_obj.get(), name.c_str()));
     if(!obj)
         throw std::runtime_error("Failed to find function");
     return obj;
 }
 
-Python::pyunique_ptr Python::Script::call_function(const std::string &name) 
-  throw(std::runtime_error) {
+Object Object::call_function(const std::string &name) {
     pyunique_ptr func(load_function(name));
     PyObject *ret(PyObject_CallObject(func.get(), 0));
     if(!ret)
         throw std::runtime_error("Failed to call function");
-    return pyunique_ptr(ret);
+    return {ret};
 }
 
-Python::pyunique_ptr Python::Script::get_attr(const std::string &name) 
-  throw(std::runtime_error) {
-    PyObject *obj(PyObject_GetAttrString(module.get(), name.c_str()));
+Object Object::get_attr(const std::string &name) {
+    PyObject *obj(PyObject_GetAttrString(py_obj.get(), name.c_str()));
     if(!obj)
         throw std::runtime_error("Unable to find attribute '" + name + '\'');
-    return pyunique_ptr(obj);
+    return {obj};
+}
+
+void initialize() {
+    Py_Initialize();
+}
+
+void finalize() {
+    Py_Finalize();
+}
+
+void clear_error() {
+    PyErr_Clear();
+}
+
+void print_error() {
+    PyErr_Print();
+}
+
+void print_object(PyObject *obj) {
+    PyObject_Print(obj, stdout, 0);
 }
 
 // Allocation methods
 
-PyObject *Python::alloc_pyobject(const std::string &str) {
+PyObject *alloc_pyobject(const std::string &str) {
     return PyString_FromString(str.c_str());
 }
 
-PyObject *Python::alloc_pyobject(const std::vector<char> &val, size_t sz) {
+PyObject *alloc_pyobject(const std::vector<char> &val, size_t sz) {
     return PyByteArray_FromStringAndSize(val.data(), sz);
 }
 
-PyObject *Python::alloc_pyobject(const std::vector<char> &val) {
+PyObject *alloc_pyobject(const std::vector<char> &val) {
     return alloc_pyobject(val, val.size());
 }
 
-PyObject *Python::alloc_pyobject(const char *cstr) {
+PyObject *alloc_pyobject(const char *cstr) {
     return PyString_FromString(cstr);
 }
 
-PyObject *Python::alloc_pyobject(size_t num) {
+PyObject *alloc_pyobject(size_t num) {
     return PyInt_FromLong(num);
 }
 
-PyObject *Python::alloc_pyobject(int num) {
+PyObject *alloc_pyobject(int num) {
     return PyInt_FromLong(num);
 }
 
-PyObject *Python::alloc_pyobject(bool value) {
+PyObject *alloc_pyobject(bool value) {
     return PyBool_FromLong(value);
 }
 
-PyObject *Python::alloc_pyobject(double num) {
+PyObject *alloc_pyobject(double num) {
     return PyFloat_FromDouble(num);
 }
 
@@ -140,14 +148,14 @@ bool is_py_float(PyObject *obj) {
     return PyFloat_Check(obj);
 }
 
-bool Python::convert(PyObject *obj, std::string &val) {
+bool convert(PyObject *obj, std::string &val) {
     if(!PyString_Check(obj))
         return false;
     val = PyString_AsString(obj);
     return true;
 }
 
-bool Python::convert(PyObject *obj, std::vector<char> &val) {
+bool convert(PyObject *obj, std::vector<char> &val) {
     if(!PyByteArray_Check(obj))
         return false;
     if(val.size() < (size_t)PyByteArray_Size(obj))
@@ -158,10 +166,10 @@ bool Python::convert(PyObject *obj, std::vector<char> &val) {
     return true;
 }
 
-bool Python::convert(PyObject *obj, Py_ssize_t &val) {
+bool convert(PyObject *obj, Py_ssize_t &val) {
     return generic_convert<Py_ssize_t>(obj, is_py_int, PyInt_AsSsize_t, val);
 }
-bool Python::convert(PyObject *obj, bool &value) {
+bool convert(PyObject *obj, bool &value) {
     if(obj == Py_False)
         value = false;
     else if(obj == Py_True)
@@ -171,10 +179,13 @@ bool Python::convert(PyObject *obj, bool &value) {
     return true;
 }
 
-bool Python::convert(PyObject *obj, double &val) {
+bool convert(PyObject *obj, double &val) {
     return generic_convert<double>(obj, is_py_float, PyFloat_AsDouble, val);
 }
 
-bool Python::convert(PyObject *obj, size_t &val) {
+bool convert(PyObject *obj, size_t &val) {
     return generic_convert<size_t>(obj, is_py_int, PyInt_AsLong, val);
+}
+
+
 }
