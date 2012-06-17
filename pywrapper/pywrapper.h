@@ -57,27 +57,25 @@ namespace Python {
     // Convert a PyObject to an float.
     bool convert(PyObject *obj, double &val);
     
-    // Helper class to use when constructing tuples from PyObjects
-    template<class Tuple, std::size_t N>
-    struct TupleCreater {
-        static bool initialize(PyObject *obj, Tuple &tup) {
-            TupleCreater<Tuple, N-1>::initialize(obj, tup);
-            return convert(PyTuple_GetItem(obj, N-1), std::get<N-1>(tup));
-        }
-    };
-    template<class Tuple>
-    struct TupleCreater<Tuple, 1> {
-        static bool initialize(PyObject *obj, Tuple &tup) {
-            return convert(PyTuple_GetItem(obj, 0), std::get<0>(tup));
-        }
-    };
-    // Convert a PyObject to a std::tuple.
+    template<size_t n, class... Args>
+    typename std::enable_if<n == 0, bool>::type 
+    add_to_tuple(PyObject *obj, std::tuple<Args...> &tup) {
+        return convert(PyTuple_GetItem(obj, n), std::get<n>(tup));
+    }
+    
+    template<size_t n, class... Args>
+    typename std::enable_if<n != 0, bool>::type 
+    add_to_tuple(PyObject *obj, std::tuple<Args...> &tup) {
+        add_to_tuple<n-1, Args...>(obj, tup);
+        return convert(PyTuple_GetItem(obj, n), std::get<n>(tup));
+    }
+    
     template<class... Args>
     bool convert(PyObject *obj, std::tuple<Args...> &tup) {
         if(!PyTuple_Check(obj) || 
             PyTuple_Size(obj) != sizeof...(Args))
             return false;
-        return TupleCreater<decltype(tup), sizeof...(Args)>::initialize(obj, tup);
+        return add_to_tuple<sizeof...(Args)-1, Args...>(obj, tup);
     }
     // Convert a PyObject to a std::map
     template<class K, class V>
