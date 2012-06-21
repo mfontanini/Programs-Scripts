@@ -48,12 +48,16 @@ namespace Python {
     bool convert(PyObject *obj, std::string &val);
     // Convert a PyObject to a std::vector<char>.
     bool convert(PyObject *obj, std::vector<char> &val);
-    // Convert a PyObject to a ssize_t.
-    bool convert(PyObject *obj, Py_ssize_t &val);
-    // Convert a PyObject to a value.
+    // Convert a PyObject to a bool value.
     bool convert(PyObject *obj, bool &value);
-    // Convert a PyObject to a size_t.
-    bool convert(PyObject *obj, size_t &val);
+    // Convert a PyObject to any integral type.
+    template<class T, typename std::enable_if<std::is_integral<T>::value, T>::type = 0>
+    bool convert(PyObject *obj, T &val) {
+        if(!PyInt_Check(obj))
+            return false;
+        val = PyInt_AsLong(obj);
+        return true;
+    }
     // Convert a PyObject to an float.
     bool convert(PyObject *obj, double &val);
     

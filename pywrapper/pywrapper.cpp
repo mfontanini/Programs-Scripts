@@ -167,9 +167,9 @@ bool convert(PyObject *obj, std::vector<char> &val) {
     return true;
 }
 
-bool convert(PyObject *obj, Py_ssize_t &val) {
+/*bool convert(PyObject *obj, Py_ssize_t &val) {
     return generic_convert<Py_ssize_t>(obj, is_py_int, PyInt_AsSsize_t, val);
-}
+}*/
 bool convert(PyObject *obj, bool &value) {
     if(obj == Py_False)
         value = false;
@@ -184,9 +184,9 @@ bool convert(PyObject *obj, double &val) {
     return generic_convert<double>(obj, is_py_float, PyFloat_AsDouble, val);
 }
 
-bool convert(PyObject *obj, size_t &val) {
+/*bool convert(PyObject *obj, size_t &val) {
     return generic_convert<size_t>(obj, is_py_int, PyInt_AsLong, val);
-}
+}*/
 
 
 }
