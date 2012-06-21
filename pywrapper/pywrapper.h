@@ -147,10 +147,11 @@ namespace Python {
     PyObject *alloc_pyobject(const std::vector<char> &val);
     // Creates a PyObject from a const char*
     PyObject *alloc_pyobject(const char *cstr);
-    // Creates a PyObject from an int
-    PyObject *alloc_pyobject(int num);
-    // Creates a PyObject from an size_t
-    PyObject *alloc_pyobject(size_t num);
+    // Creates a PyObject from any integral type(gets converted to PyInt)
+    template<class T, typename std::enable_if<std::is_integral<T>::value, T>::type = 0>
+    PyObject *alloc_pyobject(T num) {
+        return PyInt_FromLong(num);
+    }
     // Creates a PyObject from a bool
     PyObject *alloc_pyobject(bool value);
     // Creates a PyObject from a double
@@ -250,6 +251,14 @@ namespace Python {
          * \return Python::Object representing the attribute.
          */
         Object get_attr(const std::string &name);
+        
+        /**
+         * \brief Checks whether this object contains a certain attribute.
+         * 
+         * \param name The name of the attribute to be searched.
+         * \return bool indicating whether the attribute is defined.
+         */
+        bool has_attr(const std::string &name);
           
         /**
          * \brief Returns the internal PyObject*.

@@ -86,6 +86,15 @@ Object Object::get_attr(const std::string &name) {
     return {obj};
 }
 
+bool Object::has_attr(const std::string &name) {
+    try {
+        get_attr(name);
+        return true;
+    } catch(std::runtime_error&) {
+        return false;
+    }
+}
+
 void initialize() {
     Py_Initialize();
 }
@@ -122,14 +131,6 @@ PyObject *alloc_pyobject(const std::vector<char> &val) {
 
 PyObject *alloc_pyobject(const char *cstr) {
     return PyString_FromString(cstr);
-}
-
-PyObject *alloc_pyobject(size_t num) {
-    return PyInt_FromLong(num);
-}
-
-PyObject *alloc_pyobject(int num) {
-    return PyInt_FromLong(num);
 }
 
 PyObject *alloc_pyobject(bool value) {
