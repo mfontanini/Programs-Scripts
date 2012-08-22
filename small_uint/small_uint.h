@@ -52,14 +52,14 @@ private:
         >::type type;
     };
     
-    template<size_t base, size_t pow>
+    template<uint64_t base, uint64_t pow>
     struct power {
-        static const size_t value = base * power<base, pow - 1>::value;
+        static const uint64_t value = base * power<base, pow - 1>::value;
     };
     
-    template<size_t base>
+    template<uint64_t base>
     struct power<base, 0> {
-        static const size_t value = 1;
+        static const uint64_t value = 1;
     };
 public:
     typedef typename best_type<n>::type repr_type;
