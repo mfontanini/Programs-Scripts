@@ -15,6 +15,9 @@
 //
 //      Author: Matías Fontanini
 //      Contact: matias.fontanini@gmail.com
+//
+//      Thanks to Dhiru Kholia(https://github.com/kholia) for porting
+//      this rootkit to Linux >= 3.0.
 
 
 #include <linux/kernel.h>
